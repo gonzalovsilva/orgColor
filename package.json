@@ -1,5 +1,5 @@
 {
-  "name": "orgColor",
+  "name": "orgcolor",
 	"displayName": "Org color indicator",
 	"description": "Sets the statusbar with a different color for each org",
 	"version": "0.0.1",
@@ -10,12 +10,12 @@
 		"Other"
 	],
 	"activationEvents": [
-        "onCommand:orgColor.helloWorld"
+        "onCommand:orgcolor.helloWorld"
 	],
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [{
-            "command": "orgColor.helloWorld",
+            "command": "orgcolor.helloWorld",
             "title": "Hello World"
 
 		}]
