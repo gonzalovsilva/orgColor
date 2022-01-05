@@ -1,6 +1,6 @@
-# orgColor README
+# orgcolor README
 
-This is the README for your extension "orgColor". After writing up a brief description, we recommend including the following sections.
+This is the README for your extension "orgcolor". After writing up a brief description, we recommend including the following sections.
 
 ## Features
 
