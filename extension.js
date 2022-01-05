@@ -1,6 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-const { readFile } = require('fs');
+const fs = require('fs');
 const vscode = require('vscode');
 
 // this method is called when your extension is activated
@@ -10,7 +10,8 @@ const vscode = require('vscode');
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-
+	
+	const readFile = fs.promises.readFile
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "orgcolor" is now active!')
@@ -29,6 +30,7 @@ function activate(context) {
 
 	function invertColor(hex, bw) {
     if (hex.indexOf('#') === 0) {
+
         hex = hex.slice(1);
     }
     // convert 3-digit hex to 6-digits.
@@ -62,21 +64,30 @@ function activate(context) {
     return (zeros + str).slice(-len);
 	}	
 
-	async function checkFile(){ //sfdx-config.json
+	async function checkFile(file){
 		
-		if (!vscode.workspace) {
-      return vscode.window.showErrorMessage('Please open a project folder first')
-    }
+		if (vscode.workspace.workspaceFolders === undefined) {
+			return vscode.window.showErrorMessage('Please open a workspaceFolder first')
+		}
     const folderPath = vscode.workspace.workspaceFolders[0].uri
-		const uri = vscode.Uri.joinPath(folderPath, '.sfdx/sfdx-config.json')
+		const uri = vscode.Uri.joinPath(folderPath, file)
 		path = uri.fsPath
-
 		outputCh.appendLine(path);
 		
-		readFile(path, 'utf-8', (err, data) => {
-			if (err) {
-				vscode.window.showErrorMessage(err.message)
-			};
+		return readFile(path, 'utf-8')
+	}
+	
+	// The commandId parameter must match the command field in package.json
+	let disposable = vscode.commands.registerCommand('orgcolor.helloWorld', async function () {
+		// The code you place here will be executed every time your command is executed
+
+		try {
+			
+			if (!vscode.workspace) {
+				return vscode.window.showErrorMessage('Please open a project folder first')
+			}
+			const data = await checkFile('.sfdx/sfdx-config.json')
+
 			const obj = JSON.parse(data)
 			currentAliasStr = obj.defaultusername
 
@@ -96,21 +107,14 @@ function activate(context) {
 					},
 					1,
 				)
-				outputCh.appendLine(currentAliasStr)
-				outputCh.show()
 			}
+			outputCh.appendLine(currentAliasStr)
+			outputCh.show()
 
-		});
-
-		// outputCh.appendLine(currentAliasStr)
-		//Write to output.
-		// return vscode.window.showInformationMessage(message);
-	}
-	
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('orgcolor.helloWorld', async function () {
-		// The code you place here will be executed every time your command is executed
-		await checkFile()
+		} catch (e) {
+			console.error("e", e);
+		}
+		
 		// Display a message box to the user
 		// vscode.window.showInformationMessage('Hello World from Org color indicator!');
 	});
