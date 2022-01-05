@@ -1,5 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
+const homedir = require('os').homedir();
 const fs = require('fs');
 const vscode = require('vscode');
 
@@ -12,6 +13,7 @@ const vscode = require('vscode');
 function activate(context) {
 	
 	const readFile = fs.promises.readFile
+	const writeFile = fs.promises.writeFile
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "orgcolor" is now active!')
@@ -21,13 +23,19 @@ function activate(context) {
 
 	//Create output channel
 	let outputCh = vscode.window.createOutputChannel("Org Color Indicator");
+	let configFile;
 	let currentAliasStr = '';
-	let path = '';
+	let aliasPath = '';
+	let color = '';
 
 	// function invertHex(hex) {
 	// 	return (Number(`0x1${hex}`) ^ 0xFFFFFF).toString(16).substr(1).toUpperCase()
 	// }
 
+	/**
+	 * @param {string} hex
+	 * @param {boolean} bw
+	 */
 	function invertColor(hex, bw) {
     if (hex.indexOf('#') === 0) {
 
@@ -58,12 +66,19 @@ function activate(context) {
     return "#" + padZero(r) + padZero(g) + padZero(b);
 	}
 
+	/**
+	 * @param {string} str
+	 * @param {number} [len]
+	 */
 	function padZero(str, len) {
     len = len || 2;
     var zeros = new Array(len).join('0');
     return (zeros + str).slice(-len);
 	}	
 
+	/**
+	 * @param {string} file
+	 */
 	async function checkFile(file){
 		
 		if (vscode.workspace.workspaceFolders === undefined) {
@@ -71,12 +86,119 @@ function activate(context) {
 		}
     const folderPath = vscode.workspace.workspaceFolders[0].uri
 		const uri = vscode.Uri.joinPath(folderPath, file)
-		path = uri.fsPath
-		outputCh.appendLine(path);
-		
-		return readFile(path, 'utf-8')
+		aliasPath = uri.fsPath
+		try {
+			return readFile(aliasPath, 'utf-8')
+			// outputCh.appendLine(aliasPath);
+		} catch (error) {
+			outputCh.appendLine(error);
+		}
 	}
 	
+	/**
+	 * @param {string} [file]
+	 */
+	async function getConfigFile(file){
+
+		let homeURI = vscode.Uri.file(homedir);
+		const uri = vscode.Uri.joinPath(homeURI, file)
+
+		const path = uri.fsPath
+		outputCh.appendLine(path)
+
+		try {
+			configFile = await readFile(path, 'utf-8')
+			// outputCh.appendLine(data)
+
+		} catch (error) {
+			// outputCh.appendLine(error)
+			await createConfigFile(path)
+			configFile = '{}';
+			outputCh.appendLine('Config file was created.')
+		} 
+	}
+
+	/**
+	 * @param {fs.PathLike | fs.promises.FileHandle} path
+	 */
+	async function createConfigFile(path){
+		await writeFile(path, '{}')
+	}
+
+	async function getColor(){
+
+		let obj = JSON.parse(configFile)
+
+		if (Object.keys(obj).includes(currentAliasStr)) {
+			color = obj[currentAliasStr]
+		}
+		
+	}
+
+	/**
+	 * @param {string} color
+	 */
+	function setStyle(color){
+		const config = vscode.workspace.getConfiguration("workbench").get("colorCustomizations")
+		// outputCh.appendLine(JSON.stringify(config))
+		
+		vscode.workspace.getConfiguration("workbench").update(
+			"colorCustomizations",
+			{
+					...config,
+					"statusBar.background": color,
+					"statusBar.foreground": invertColor(color, true),
+					// "titleBar.activeBackground": color,
+					// "titleBar.activeForeground": invertColor(color, true),
+			},
+			1,
+		)
+	}
+
+	async function inputNewColor() {
+		const input = await vscode.window.showInputBox();
+		color = input
+	}
+
+	/**
+	 * @param {string} file
+	 */
+	async function updateConfigFile(file){
+
+		let homeURI = vscode.Uri.file(homedir);
+		const uri = vscode.Uri.joinPath(homeURI, file)
+
+		const path = uri.fsPath
+
+		const newConfig = { ...JSON.parse(configFile),  [currentAliasStr]: color }
+
+		try {
+
+			await writeFile(path, JSON.stringify(newConfig))
+			outputCh.appendLine(JSON.stringify(newConfig))
+			
+		} catch (error) {
+			outputCh.appendLine(error)
+		} 
+		
+	}
+
+	/**
+	 * @param {string} [file]
+	 */
+	function trackFile(file){
+		let homeURI = vscode.Uri.file(homedir);
+		const uri = vscode.Uri.joinPath(homeURI, file)
+
+		const path = uri.fsPath
+
+		fs.watch(path, (event, filename) => {
+			if (filename) {
+				console.log(`${filename} file Changed`);
+			}
+		})
+	}
+
 	// The commandId parameter must match the command field in package.json
 	let disposable = vscode.commands.registerCommand('orgcolor.helloWorld', async function () {
 		// The code you place here will be executed every time your command is executed
@@ -87,28 +209,25 @@ function activate(context) {
 				return vscode.window.showErrorMessage('Please open a project folder first')
 			}
 			const data = await checkFile('.sfdx/sfdx-config.json')
+			outputCh.appendLine('HELP'+data)
 
 			const obj = JSON.parse(data)
 			currentAliasStr = obj.defaultusername
 
-			if(currentAliasStr === 'DreamHouse PG'){
+			await getConfigFile('.sfdx/orgColor.json')
+			outputCh.appendLine(configFile)
 
-				const config = vscode.workspace.getConfiguration("workbench").get("colorCustomizations")
-				outputCh.appendLine(JSON.stringify(config))
+			await getColor()
 
-				const newColor = "#133d80";
-				
-				vscode.workspace.getConfiguration("workbench").update(
-					"colorCustomizations",
-					{
-							...config,
-							"statusBar.background": newColor,
-							"statusBar.foreground": invertColor(newColor, true),
-					},
-					1,
-				)
+			if(color === '') {
+				await inputNewColor()
+				await updateConfigFile('.sfdx/orgColor.json')
 			}
-			outputCh.appendLine(currentAliasStr)
+			
+			setStyle(color)
+			
+			trackFile('.sfdx/sfdx-config.json')
+			// outputCh.appendLine(currentAliasStr)
 			outputCh.show()
 
 		} catch (e) {
