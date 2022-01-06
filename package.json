@@ -10,14 +10,13 @@
 		"Other"
 	],
 	"activationEvents": [
-				"workspaceContains:.sfdx/sfdx-config.json",
-        "onCommand:orgcolor.helloWorld"
+				"workspaceContains:.sfdx/sfdx-config.json"
 	],
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [{
             "command": "orgcolor.setOrgColor",
-            "title": "OrgColor: Set Org Color"
+            "title": "ORG COLOR: Set Org Color"
 
 		}]
 	},
@@ -26,6 +25,9 @@
 		"pretest": "npm run lint",
 		"test": "node ./test/runTest.js"
 	},
+	"extensionDependencies": [
+		"salesforce.salesforcedx-vscode"
+	],
 	"devDependencies": {
         "@types/vscode": "^1.63.0",
         "@types/glob": "^7.1.4",

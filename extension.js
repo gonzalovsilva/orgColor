@@ -29,8 +29,6 @@ function activate(context) {
 	let aliasPath = '';
 	let color = '';
 
-	vscode.commands.executeCommand('orgcolor.setOrgColor')
-
 	/**
 	 * @param {string} hex
 	 * @param {boolean} bw
@@ -160,26 +158,25 @@ function activate(context) {
 	 * @param {string} color
 	 */
 	function setStyle(color){
-		const config = vscode.workspace.getConfiguration("workbench").get("colorCustomizations")
-		// outputCh.appendLine(JSON.stringify(config))
 		
+		// const config = vscode.workspace.getConfiguration("workbench").get("colorCustomizations")
+		// outputCh.appendLine(JSON.stringify(config))
+
 		vscode.workspace.getConfiguration("workbench").update(
 			"colorCustomizations",
 			{
-					...config,
 					"statusBar.background": color,
 					"statusBar.foreground": invertColor(color, true),
 					"statusBarItem.hoverBackground": "#8b8680",
 					"statusBarItem.activeBackground": "#8b8680",
 					"statusBar.border": color
 
-
 					// "titleBar.activeBackground": color,
 					// "titleBar.activeForeground": invertColor(color, true),
 					// "titleBar.border": color,
 					// "titleBar.inactiveBackground": color
 			},
-			1,
+			0
 		)
 	}
 
@@ -239,10 +236,27 @@ function activate(context) {
 	
 	fileWatcher.onDidChange(function (){
 		// outputCh.appendLine(`${e} was changed.`)
-		console.log('.sfdx/sfdx-config.json was changed.')
+		// console.log('.sfdx/sfdx-config.json was changed.')
 		vscode.commands.executeCommand('orgcolor.setOrgColor')
 	})
 	
+
+	// workaround cause at startup config is overwritten by live share extension
+	const liveShareExtension = vscode.extensions.getExtension('ms-vsliveshare.vsliveshare');
+	function wait() {
+		if (!liveShareExtension.isActive) {
+			setTimeout(wait, 1000);
+		} else {
+			// console.log('TEST: Is Active ? '+liveShareExtension.isActive)
+			vscode.commands.executeCommand('orgcolor.setOrgColor')
+		}
+	}
+	if(liveShareExtension !== undefined){
+		// console.log('TEST: Is Active ? '+liveShareExtension.isActive)
+		wait()
+	}else{
+		vscode.commands.executeCommand('orgcolor.setOrgColor')
+	}
 
 	// The commandId parameter must match the command field in package.json
 	let disposable = vscode.commands.registerCommand('orgcolor.setOrgColor', async function () {
@@ -272,13 +286,14 @@ function activate(context) {
 				
 				let colorResult = await getColor()
 
-				console.log('in main() colorResult = '+colorResult)
+				// console.log('in main() colorResult = '+colorResult)
 				
 				if(colorResult === '') {
-					console.log("if colorResult === '' = "+colorResult)
+					// console.log("if colorResult === '' = "+colorResult)
 					inputNewColor()
 
 				}else{
+					
 					setStyle(color)
 					// outputCh.show()
 				}
