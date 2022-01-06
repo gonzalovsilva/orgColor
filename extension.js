@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 const homedir = require('os').homedir();
 const fs = require('fs');
+const { abort } = require('process');
 const vscode = require('vscode');
 
 // this method is called when your extension is activated
@@ -22,15 +23,13 @@ function activate(context) {
 	// Now provide the implementation of the command with  registerCommand
 
 	//Create output channel
-	let outputCh = vscode.window.createOutputChannel("Org Color Indicator");
+	// let outputCh = vscode.window.createOutputChannel("Org Color Indicator");
 	let configFile;
 	let currentAliasStr = '';
 	let aliasPath = '';
 	let color = '';
 
-	// function invertHex(hex) {
-	// 	return (Number(`0x1${hex}`) ^ 0xFFFFFF).toString(16).substr(1).toUpperCase()
-	// }
+	vscode.commands.executeCommand('orgcolor.helloWorld')
 
 	/**
 	 * @param {string} hex
@@ -54,7 +53,8 @@ function activate(context) {
 		b = parseInt(hex.slice(4, 6), 16);
     if (bw) {
         // https://stackoverflow.com/a/3943023/112731
-        return (r * 0.299 + g * 0.587 + b * 0.114) > 186
+				// https://jsfiddle.net/bvpu1025/25/
+        return (r * 0.299 + g * 0.887 + b * 0.114) > 186
             ? '#000000'
             : '#FFFFDD';
     }
@@ -76,6 +76,24 @@ function activate(context) {
     return (zeros + str).slice(-len);
 	}	
 
+	async function checkFileExists(file) {
+		if (vscode.workspace.workspaceFolders === undefined) {
+			vscode.window.showErrorMessage('Please open a workspaceFolder first')
+			abort
+		}
+    const folderPath = vscode.workspace.workspaceFolders[0].uri
+		const uri = vscode.Uri.joinPath(folderPath, file)
+		aliasPath = uri.fsPath
+
+		console.log(fs.promises.access(aliasPath, fs.constants.F_OK)
+		.then(() => true)
+		.catch(() => false))
+
+		return fs.promises.access(aliasPath, fs.constants.F_OK)
+						 .then(() => true)
+						 .catch(() => false)
+	}
+
 	/**
 	 * @param {string} file
 	 */
@@ -87,11 +105,12 @@ function activate(context) {
     const folderPath = vscode.workspace.workspaceFolders[0].uri
 		const uri = vscode.Uri.joinPath(folderPath, file)
 		aliasPath = uri.fsPath
+
 		try {
 			return readFile(aliasPath, 'utf-8')
 			// outputCh.appendLine(aliasPath);
 		} catch (error) {
-			outputCh.appendLine(error);
+			// outputCh.appendLine(error);
 		}
 	}
 	
@@ -104,7 +123,7 @@ function activate(context) {
 		const uri = vscode.Uri.joinPath(homeURI, file)
 
 		const path = uri.fsPath
-		outputCh.appendLine(path)
+		// outputCh.appendLine(path)
 
 		try {
 			configFile = await readFile(path, 'utf-8')
@@ -114,7 +133,7 @@ function activate(context) {
 			// outputCh.appendLine(error)
 			await createConfigFile(path)
 			configFile = '{}';
-			outputCh.appendLine('Config file was created.')
+			// outputCh.appendLine('Config file was created.')
 		} 
 	}
 
@@ -132,7 +151,9 @@ function activate(context) {
 		if (Object.keys(obj).includes(currentAliasStr)) {
 			color = obj[currentAliasStr]
 		}
+		console.log('in getColor() color = '+color)
 		
+		return color;
 	}
 
 	/**
@@ -148,56 +169,80 @@ function activate(context) {
 					...config,
 					"statusBar.background": color,
 					"statusBar.foreground": invertColor(color, true),
+					"statusBarItem.hoverBackground": "#8b8680",
+					"statusBarItem.activeBackground": "#8b8680",
+					"statusBar.border": color
+
+
 					// "titleBar.activeBackground": color,
 					// "titleBar.activeForeground": invertColor(color, true),
+					// "titleBar.border": color,
+					// "titleBar.inactiveBackground": color
 			},
 			1,
 		)
 	}
 
 	async function inputNewColor() {
-		const input = await vscode.window.showInputBox();
-		color = input
+		const reg = /^#([0-9a-f]{3}){1,2}$/i;
+		vscode.window.showInputBox({
+			placeHolder: "#B44",
+			ignoreFocusOut: true,
+			prompt: 'Enter two words',
+			validateInput: (text) => {
+				if (!reg.test(text)) {
+						return 'You must enter a valid hex color value';
+				} 	
+			}
+		}).then(input => {
+			if(input === undefined || input === ''){
+				abort
+			}else{
+				console.log("in inputNewColor() if input not undefined or '' = "+input)
+				color = input
+	
+				updateConfigFile('.sfdx/orgColor.json')
+				// outputCh.show()
+			}
+		});
 	}
-
+		
 	/**
 	 * @param {string} file
 	 */
 	async function updateConfigFile(file){
-
+		
 		let homeURI = vscode.Uri.file(homedir);
 		const uri = vscode.Uri.joinPath(homeURI, file)
-
+		
 		const path = uri.fsPath
-
+		
 		const newConfig = { ...JSON.parse(configFile),  [currentAliasStr]: color }
+		
+		configFile = JSON.stringify(newConfig)
+		// outputCh.appendLine('new config file : '+configFile)
 
 		try {
+			setStyle(color)
 
-			await writeFile(path, JSON.stringify(newConfig))
-			outputCh.appendLine(JSON.stringify(newConfig))
+			await writeFile(path, newConfig)
+			console.log('file updated')
 			
 		} catch (error) {
-			outputCh.appendLine(error)
+			// outputCh.appendLine(error)
 		} 
 		
 	}
 
-	/**
-	 * @param {string} [file]
-	 */
-	function trackFile(file){
-		let homeURI = vscode.Uri.file(homedir);
-		const uri = vscode.Uri.joinPath(homeURI, file)
 
-		const path = uri.fsPath
-
-		fs.watch(path, (event, filename) => {
-			if (filename) {
-				console.log(`${filename} file Changed`);
-			}
-		})
-	}
+	let fileWatcher = vscode.workspace.createFileSystemWatcher('**/sfdx-config.json', false, false, true)
+	
+	fileWatcher.onDidChange(function (){
+		// outputCh.appendLine(`${e} was changed.`)
+		console.log('.sfdx/sfdx-config.json was changed.')
+		vscode.commands.executeCommand('orgcolor.helloWorld')
+	})
+	
 
 	// The commandId parameter must match the command field in package.json
 	let disposable = vscode.commands.registerCommand('orgcolor.helloWorld', async function () {
@@ -208,30 +253,41 @@ function activate(context) {
 			if (!vscode.workspace) {
 				return vscode.window.showErrorMessage('Please open a project folder first')
 			}
-			const data = await checkFile('.sfdx/sfdx-config.json')
-			outputCh.appendLine('HELP'+data)
+			// outputCh.clear();
 
-			const obj = JSON.parse(data)
-			currentAliasStr = obj.defaultusername
+			color = '';
 
-			await getConfigFile('.sfdx/orgColor.json')
-			outputCh.appendLine(configFile)
+			const exists = await checkFileExists('.sfdx/sfdx-config.json')
 
-			await getColor()
+			if(exists){
 
-			if(color === '') {
-				await inputNewColor()
-				await updateConfigFile('.sfdx/orgColor.json')
+				const data = await checkFile('.sfdx/sfdx-config.json')
+				
+				const obj = JSON.parse(data)
+				currentAliasStr = obj.defaultusername
+				// outputCh.appendLine(currentAliasStr)
+	
+				await getConfigFile('.sfdx/orgColor.json')
+				// outputCh.appendLine('old config file : '+configFile)
+				
+				let colorResult = await getColor()
+
+				console.log('in main() colorResult = '+colorResult)
+				
+				if(colorResult === '') {
+					console.log("if colorResult === '' = "+colorResult)
+					inputNewColor()
+
+				}else{
+					setStyle(color)
+					// outputCh.show()
+				}
+
 			}
-			
-			setStyle(color)
-			
-			trackFile('.sfdx/sfdx-config.json')
-			// outputCh.appendLine(currentAliasStr)
-			outputCh.show()
+
 
 		} catch (e) {
-			console.error("e", e);
+			console.log("e", e);
 		}
 		
 		// Display a message box to the user

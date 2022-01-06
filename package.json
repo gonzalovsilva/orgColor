@@ -10,8 +10,8 @@
 		"Other"
 	],
 	"activationEvents": [
-        "onCommand:orgcolor.helloWorld",
-        "workspaceContains:.sfdx/sfdx-config.json"
+				"workspaceContains:.sfdx/sfdx-config.json",
+        "onCommand:orgcolor.helloWorld"
 	],
 	"main": "./extension.js",
 	"contributes": {
