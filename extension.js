@@ -29,7 +29,7 @@ function activate(context) {
 	let aliasPath = '';
 	let color = '';
 
-	vscode.commands.executeCommand('orgcolor.helloWorld')
+	vscode.commands.executeCommand('orgcolor.setOrgColor')
 
 	/**
 	 * @param {string} hex
