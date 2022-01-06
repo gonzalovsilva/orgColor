@@ -188,7 +188,7 @@ function activate(context) {
 		vscode.window.showInputBox({
 			placeHolder: "#B44",
 			ignoreFocusOut: true,
-			prompt: 'Enter two words',
+			prompt: 'Enter an hex color value',
 			validateInput: (text) => {
 				if (!reg.test(text)) {
 						return 'You must enter a valid hex color value';
@@ -225,7 +225,7 @@ function activate(context) {
 		try {
 			setStyle(color)
 
-			await writeFile(path, newConfig)
+			await writeFile(path, JSON.stringify(newConfig, null, 2))
 			console.log('file updated')
 			
 		} catch (error) {
@@ -240,12 +240,12 @@ function activate(context) {
 	fileWatcher.onDidChange(function (){
 		// outputCh.appendLine(`${e} was changed.`)
 		console.log('.sfdx/sfdx-config.json was changed.')
-		vscode.commands.executeCommand('orgcolor.helloWorld')
+		vscode.commands.executeCommand('orgcolor.setOrgColor')
 	})
 	
 
 	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('orgcolor.helloWorld', async function () {
+	let disposable = vscode.commands.registerCommand('orgcolor.setOrgColor', async function () {
 		// The code you place here will be executed every time your command is executed
 
 		try {

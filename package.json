@@ -16,8 +16,8 @@
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [{
-            "command": "orgcolor.helloWorld",
-            "title": "Hello World"
+            "command": "orgcolor.setOrgColor",
+            "title": "OrgColor: Set Org Color"
 
 		}]
 	},
