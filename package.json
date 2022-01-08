@@ -3,6 +3,7 @@
 	"displayName": "Org color indicator",
 	"description": "Sets the statusbar with a different color for each org",
 	"version": "0.0.1",
+	"publisher": "gonzalovsilva",
 	"engines": {
 		"vscode": "^1.63.0"
 	},
@@ -15,9 +16,16 @@
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [{
-            "command": "orgcolor.setOrgColor",
-            "title": "ORG COLOR: Set Org Color"
-
+			"command": "orgcolor.setOrgColor",
+			"title": "Set Org Color",
+			"shortTitle": "Set Org Color",
+			"category": "Orgcolor"
+		},
+		{
+			"command": "orgcolor.updateOrgColor",
+			"title": "Update Org Color",
+			"shortTitle": "Update Org Color",
+			"category": "Orgcolor"
 		}]
 	},
 	"scripts": {

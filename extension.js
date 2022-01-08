@@ -17,7 +17,7 @@ function activate(context) {
 	const writeFile = fs.promises.writeFile
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "orgcolor" is now active!')
+	// console.log('Congratulations, your extension "orgcolor" is now active!')
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with  registerCommand
@@ -74,6 +74,9 @@ function activate(context) {
     return (zeros + str).slice(-len);
 	}	
 
+	/**
+	 * @param {string} file
+	 */
 	async function checkFileExists(file) {
 		if (vscode.workspace.workspaceFolders === undefined) {
 			vscode.window.showErrorMessage('Please open a workspaceFolder first')
@@ -83,13 +86,9 @@ function activate(context) {
 		const uri = vscode.Uri.joinPath(folderPath, file)
 		aliasPath = uri.fsPath
 
-		console.log(fs.promises.access(aliasPath, fs.constants.F_OK)
-		.then(() => true)
-		.catch(() => false))
-
 		return fs.promises.access(aliasPath, fs.constants.F_OK)
-						 .then(() => true)
-						 .catch(() => false)
+			.then(() => true)
+			.catch(() => false)
 	}
 
 	/**
@@ -149,7 +148,7 @@ function activate(context) {
 		if (Object.keys(obj).includes(currentAliasStr)) {
 			color = obj[currentAliasStr]
 		}
-		console.log('in getColor() color = '+color)
+		// console.log('in getColor() color = '+color)
 		
 		return color;
 	}
@@ -180,28 +179,55 @@ function activate(context) {
 		)
 	}
 
+	async function selectColor(){
+		const selected = await vscode.window.showQuickPick(
+			[
+				{ label: 'Trailhead', description: 'Trailhead org | Color : Red Oak', choice: 1, color : '#DEF2FF' },
+				{ label: 'Scratch', description: 'Scratch org | Color : Atomic Green', choice: 2, color : '#73D06F' },
+				{ label: 'Dev', description: 'Dev org | Color : Mystic Blue', choice: 3, color : '#574FB8' },
+				{ label: 'UAT', description: 'User Acceptance Testing org | Color : Blaze Orange', choice: 4, color : '#FFA01B' },
+				{ label: 'PreProd', description: 'Pre-production org | Color : Watermelon', choice: 5, color : '#E8476A' },
+				{ label: 'Prod', description: 'Production org | Color : Paprika', choice: 6, color : '#B52B0B' },
+				{ label: 'Other', description: 'Set your own color', choice: 7, color : '' }
+			],
+			{ placeHolder: 'Select the color that you want for the current org.' });
+		
+		return selected
+	}
+
 	async function inputNewColor() {
-		const reg = /^#([0-9a-f]{3}){1,2}$/i;
-		vscode.window.showInputBox({
-			placeHolder: "#B44",
-			ignoreFocusOut: true,
-			prompt: 'Enter an hex color value',
-			validateInput: (text) => {
-				if (!reg.test(text)) {
-						return 'You must enter a valid hex color value';
-				} 	
+
+		const result = await selectColor();
+
+		if(result){
+			if(result.choice === 7){
+				const reg = /^#([0-9a-f]{3}){1,2}$/i;
+				vscode.window.showInputBox({
+					placeHolder: "#B44",
+					ignoreFocusOut: true,
+					prompt: 'Enter an hex color value',
+					validateInput: (text) => {
+						if (!reg.test(text)) {
+								return 'You must enter a valid hex color value';
+						} 	
+					}
+				}).then(input => {
+					if(input === undefined || input === ''){
+						abort
+					}else{
+						// console.log("in inputNewColor() if input not undefined or '' = "+input)
+						color = input
+						updateConfigFile('.sfdx/orgColor.json')
+						// outputCh.show()
+					}
+				});
+				
 			}
-		}).then(input => {
-			if(input === undefined || input === ''){
-				abort
-			}else{
-				console.log("in inputNewColor() if input not undefined or '' = "+input)
-				color = input
-	
+			else{
+				color = result.color
 				updateConfigFile('.sfdx/orgColor.json')
-				// outputCh.show()
 			}
-		});
+		}
 	}
 		
 	/**
@@ -223,7 +249,7 @@ function activate(context) {
 			setStyle(color)
 
 			await writeFile(path, JSON.stringify(newConfig, null, 2))
-			console.log('file updated')
+			// console.log('file updated')
 			
 		} catch (error) {
 			// outputCh.appendLine(error)
@@ -231,6 +257,49 @@ function activate(context) {
 		
 	}
 
+	/**
+	 * @param {boolean} [toUpdate]
+	 */
+	async function main(toUpdate) {
+		// The code you place here will be executed every time your command is executed
+		try {
+			if (!vscode.workspace) {
+				return vscode.window.showErrorMessage('Please open a project folder first')
+			}
+			// outputCh.clear();
+			color = '';
+			const exists = await checkFileExists('.sfdx/sfdx-config.json')
+
+			if(exists){
+				const data = await checkFile('.sfdx/sfdx-config.json')
+				const obj = JSON.parse(data)
+				currentAliasStr = obj.defaultusername
+				// outputCh.appendLine(currentAliasStr)
+	
+				await getConfigFile('.sfdx/orgColor.json')
+				// outputCh.appendLine('old config file : '+configFile)
+				
+				let colorResult = await getColor()
+				// console.log('in main() colorResult = '+colorResult)
+				
+				
+				if(colorResult === '' ) {
+					// console.log("if colorResult === '' = "+colorResult)
+					inputNewColor()
+
+				}else{
+
+					toUpdate === true ? inputNewColor() : setStyle(color)
+
+					// outputCh.show()
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		}
+		// Display a message box to the user
+		// vscode.window.showInformationMessage('Hello World from Org color indicator!');
+	}
 
 	let fileWatcher = vscode.workspace.createFileSystemWatcher('**/sfdx-config.json', false, false, true)
 	
@@ -259,57 +328,11 @@ function activate(context) {
 	}
 
 	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('orgcolor.setOrgColor', async function () {
-		// The code you place here will be executed every time your command is executed
-
-		try {
-			
-			if (!vscode.workspace) {
-				return vscode.window.showErrorMessage('Please open a project folder first')
-			}
-			// outputCh.clear();
-
-			color = '';
-
-			const exists = await checkFileExists('.sfdx/sfdx-config.json')
-
-			if(exists){
-
-				const data = await checkFile('.sfdx/sfdx-config.json')
-				
-				const obj = JSON.parse(data)
-				currentAliasStr = obj.defaultusername
-				// outputCh.appendLine(currentAliasStr)
+	let disposable1 = vscode.commands.registerCommand('orgcolor.setOrgColor', () => main(false) );
+	context.subscriptions.push(disposable1)
 	
-				await getConfigFile('.sfdx/orgColor.json')
-				// outputCh.appendLine('old config file : '+configFile)
-				
-				let colorResult = await getColor()
-
-				// console.log('in main() colorResult = '+colorResult)
-				
-				if(colorResult === '') {
-					// console.log("if colorResult === '' = "+colorResult)
-					inputNewColor()
-
-				}else{
-					
-					setStyle(color)
-					// outputCh.show()
-				}
-
-			}
-
-
-		} catch (e) {
-			console.log("e", e);
-		}
-		
-		// Display a message box to the user
-		// vscode.window.showInformationMessage('Hello World from Org color indicator!');
-	});
-
-	context.subscriptions.push(disposable)
+	let disposable2 = vscode.commands.registerCommand('orgcolor.updateOrgColor', () => main(true) );
+	context.subscriptions.push(disposable2)
 }
 
 // this method is called when your extension is deactivated
