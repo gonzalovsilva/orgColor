@@ -182,13 +182,13 @@ function activate(context) {
 	async function selectColor(){
 		const selected = await vscode.window.showQuickPick(
 			[
-				{ label: 'Trailhead', description: 'Trailhead org | Color : Red Oak', choice: 1, color : '#DEF2FF' },
+				{ label: 'Trailhead', description: 'Trailhead org | Color : Foggy Blue', choice: 1, color : '#99AEBB' },
 				{ label: 'Scratch', description: 'Scratch org | Color : Atomic Green', choice: 2, color : '#73D06F' },
 				{ label: 'Dev', description: 'Dev org | Color : Mystic Blue', choice: 3, color : '#574FB8' },
 				{ label: 'UAT', description: 'User Acceptance Testing org | Color : Blaze Orange', choice: 4, color : '#FFA01B' },
 				{ label: 'PreProd', description: 'Pre-production org | Color : Watermelon', choice: 5, color : '#E8476A' },
 				{ label: 'Prod', description: 'Production org | Color : Paprika', choice: 6, color : '#B52B0B' },
-				{ label: 'Other', description: 'Set your own color', choice: 7, color : '' }
+				{ label: 'Custom', description: 'Set your own Hex color', choice: 7, color : '' }
 			],
 			{ placeHolder: 'Select the color that you want for the current org.' });
 		
