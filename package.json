@@ -1,14 +1,29 @@
 {
   "name": "orgcolor",
   "displayName": "Org color indicator",
-  "description": "Sets the statusbar with a different color for each org",
+  "description": "Sets colors for each Salesforce org that you work with, updating it automatically when you switch orgs.",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gonzalovsilva/orgColor"
+  },
   "publisher": "gonzalovsilva",
+  "author": {
+    "name": "Gonçalo Silva"
+  },
   "engines": {
     "vscode": "^1.63.0"
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "salesforce",
+    "org",
+    "color",
+    "indicator",
+    "sfdx",
+    "cli"
   ],
   "activationEvents": [
     "workspaceContains:.sfdx/sfdx-config.json"
