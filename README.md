@@ -1,65 +1,34 @@
-# orgcolor README
+# Org Color Indicator
 
-This is the README for your extension "orgcolor". After writing up a brief description, we recommend including the following sections.
+This extension adds the possibility to set colors for each Salesforce org that you work with, updating it automatically when you switch orgs.
+It allows you to keep an eye on which org you are currently working with in a more visual way.
 
-## Features
-
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+![on switching orgs anim](./images/anim_switch_orgs.gif)
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+This extension requires you to have the [Salesforce Extension Pack
+](vscode:extension/salesforce.salesforcedx-vscode) installed.
 
-## Extension Settings
+## Using it with a new org
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+![on first use anim](./images/anim_use.gif)
 
-For example:
+## Settings in more detail
 
-This extension contributes the following settings:
+### Where configured org colors are saved
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
+It saves your Org Color settings at `~/.sfdx/orgColor.json` on linux, and at `%userprofile%\.sfdx\orgColor.json` on windows. That way it stays in the same place as the authorized org settings.
 
-## Known Issues
+![settings section](./images/settings.png)
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+### Default colors
 
-## Release Notes
+- ![#99AEBB](https://via.placeholder.com/15/99AEBB/000000?text=+) `"trailhead Org": "#99AEBB"`
+- ![#73D06F](https://via.placeholder.com/15/73D06F/000000?text=+) `"scratch Org": "#73D06F"`
+- ![#574FB8](https://via.placeholder.com/15/574FB8/000000?text=+) `"dev Org": "#574FB8"`
+- ![#FFA01B](https://via.placeholder.com/15/FFA01B/000000?text=+) `"uat Org": "#FFA01B"`
+- ![#E8476A](https://via.placeholder.com/15/E8476A/000000?text=+) `"preprod Org": "#E8476A"`
+- ![#B52B0B](https://via.placeholder.com/15/B52B0B/000000?text=+) `"prod Org": "#B52B0B"`
 
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+![dialog to choose a color](./images/choose_colors.png)

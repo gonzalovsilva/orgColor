@@ -1,12 +1,7 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 const homedir = require('os').homedir();
 const fs = require('fs');
 const { abort } = require('process');
 const vscode = require('vscode');
-
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -15,15 +10,6 @@ function activate(context) {
 	
 	const readFile = fs.promises.readFile
 	const writeFile = fs.promises.writeFile
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	// console.log('Congratulations, your extension "orgcolor" is now active!')
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with  registerCommand
-
-	//Create output channel
-	// let outputCh = vscode.window.createOutputChannel("Org Color Indicator");
 	let configFile;
 	let currentAliasStr = '';
 	let aliasPath = '';
@@ -105,9 +91,7 @@ function activate(context) {
 
 		try {
 			return readFile(aliasPath, 'utf-8')
-			// outputCh.appendLine(aliasPath);
 		} catch (error) {
-			// outputCh.appendLine(error);
 		}
 	}
 	
@@ -120,17 +104,13 @@ function activate(context) {
 		const uri = vscode.Uri.joinPath(homeURI, file)
 
 		const path = uri.fsPath
-		// outputCh.appendLine(path)
 
 		try {
 			configFile = await readFile(path, 'utf-8')
-			// outputCh.appendLine(data)
 
 		} catch (error) {
-			// outputCh.appendLine(error)
 			await createConfigFile(path)
 			configFile = '{}';
-			// outputCh.appendLine('Config file was created.')
 		} 
 	}
 
@@ -148,7 +128,6 @@ function activate(context) {
 		if (Object.keys(obj).includes(currentAliasStr)) {
 			color = obj[currentAliasStr]
 		}
-		// console.log('in getColor() color = '+color)
 		
 		return color;
 	}
@@ -156,42 +135,67 @@ function activate(context) {
 	/**
 	 * @param {string} color
 	 */
-	function setStyle(color){
-		
-		// const config = vscode.workspace.getConfiguration("workbench").get("colorCustomizations")
-		// outputCh.appendLine(JSON.stringify(config))
+	function updateStyle(color){
 
-		vscode.workspace.getConfiguration("workbench").update(
-			"colorCustomizations",
-			{
-					"statusBar.background": color,
-					"statusBar.foreground": invertColor(color, true),
-					"statusBarItem.hoverBackground": "#8b8680",
-					"statusBarItem.activeBackground": "#8b8680",
-					"statusBar.border": color
+		const extensionConfig = vscode.workspace.getConfiguration('orgcolor')
+		const colBars = JSON.parse(JSON.stringify( extensionConfig.get('setColorBars') ))
 
-					// "titleBar.activeBackground": color,
-					// "titleBar.activeForeground": invertColor(color, true),
-					// "titleBar.border": color,
-					// "titleBar.inactiveBackground": color
-			},
-			0
-		)
+		const invertedColor = color ? invertColor(color, true) :undefined
+		const neutralColor = "#8b8680"
+		let _true, _color, _invertedColor, _neutralColor;
+		let tmpObj = {};
+
+		_true = colBars.statusBar === true
+		_color = _true ? color : undefined
+		_invertedColor = _true ? invertedColor : undefined
+		_neutralColor = _true ? neutralColor : undefined
+
+		tmpObj["statusBar.background"] = _color
+		tmpObj["statusBar.foreground"] =  _invertedColor
+		tmpObj["statusBarItem.hoverBackground"] = _neutralColor
+		tmpObj["statusBarItem.activeBackground"] = _neutralColor
+		tmpObj["statusBar.border"] = _color
+
+		_true = colBars.titleBar === true
+		_color = _true ? color : undefined
+		_invertedColor = _true ? invertedColor : undefined
+		_neutralColor = _true ? neutralColor : undefined
+
+		tmpObj["titleBar.activeBackground"] = _color
+		tmpObj["titleBar.activeForeground"] = _invertedColor
+		tmpObj["titleBar.border"] = _color
+		tmpObj["titleBar.inactiveBackground"] = _color
+
+		_true = colBars.activityBar === true
+		_color = _true ? color : undefined
+		_invertedColor = _true ? invertedColor : undefined
+		_neutralColor = _true ? neutralColor : undefined
+
+		tmpObj["activityBar.activeBackground"] = _neutralColor
+		tmpObj["activityBar.activeBorder"] = _neutralColor
+		tmpObj["activityBar.background"] = _color
+		tmpObj["activityBar.foreground"] = _invertedColor
+
+		vscode.workspace.getConfiguration("workbench").update("colorCustomizations", tmpObj, 0)
 	}
 
 	async function selectColor(){
+
+		const extensionConfig = vscode.workspace.getConfiguration('orgcolor')
+		const orgColorSettings = JSON.parse(JSON.stringify( extensionConfig.get('defaultOrgColors') ))
+
+		let optionsArray = []
+		for (var key in orgColorSettings) {
+			if (orgColorSettings.hasOwnProperty(key)) {
+				optionsArray.push({ label: key , description: ' Default Color: '+orgColorSettings[key] , color : orgColorSettings[key] })
+			}
+		}
+		optionsArray.push({ label: 'Custom' , description: 'Set your own Hex color', color : '' })
+
 		const selected = await vscode.window.showQuickPick(
-			[
-				{ label: 'Trailhead', description: 'Trailhead org | Color : Foggy Blue', choice: 1, color : '#99AEBB' },
-				{ label: 'Scratch', description: 'Scratch org | Color : Atomic Green', choice: 2, color : '#73D06F' },
-				{ label: 'Dev', description: 'Dev org | Color : Mystic Blue', choice: 3, color : '#574FB8' },
-				{ label: 'UAT', description: 'User Acceptance Testing org | Color : Blaze Orange', choice: 4, color : '#FFA01B' },
-				{ label: 'PreProd', description: 'Pre-production org | Color : Watermelon', choice: 5, color : '#E8476A' },
-				{ label: 'Prod', description: 'Production org | Color : Paprika', choice: 6, color : '#B52B0B' },
-				{ label: 'Custom', description: 'Set your own Hex color', choice: 7, color : '' }
-			],
+			optionsArray,
 			{ placeHolder: 'Select the color that you want for the current org.' });
-		
+
 		return selected
 	}
 
@@ -200,7 +204,7 @@ function activate(context) {
 		const result = await selectColor();
 
 		if(result){
-			if(result.choice === 7){
+			if(result.label === 'Custom'){
 				const reg = /^#([0-9a-f]{3}){1,2}$/i;
 				vscode.window.showInputBox({
 					placeHolder: "#B44",
@@ -215,10 +219,8 @@ function activate(context) {
 					if(input === undefined || input === ''){
 						abort
 					}else{
-						// console.log("in inputNewColor() if input not undefined or '' = "+input)
 						color = input
 						updateConfigFile('.sfdx/orgColor.json')
-						// outputCh.show()
 					}
 				});
 				
@@ -243,30 +245,24 @@ function activate(context) {
 		const newConfig = { ...JSON.parse(configFile),  [currentAliasStr]: color }
 		
 		configFile = JSON.stringify(newConfig)
-		// outputCh.appendLine('new config file : '+configFile)
 
 		try {
-			setStyle(color)
+			updateStyle(color)
 
 			await writeFile(path, JSON.stringify(newConfig, null, 2))
 			// console.log('file updated')
 			
 		} catch (error) {
-			// outputCh.appendLine(error)
 		} 
 		
 	}
 
-	/**
-	 * @param {boolean} [toUpdate]
-	 */
-	async function main(toUpdate) {
-		// The code you place here will be executed every time your command is executed
+
+	async function main({ toUpdate = false, settingsChanged = false } = {}) {
 		try {
 			if (!vscode.workspace) {
 				return vscode.window.showErrorMessage('Please open a project folder first')
 			}
-			// outputCh.clear();
 			color = '';
 			const exists = await checkFileExists('.sfdx/sfdx-config.json')
 
@@ -274,25 +270,27 @@ function activate(context) {
 				const data = await checkFile('.sfdx/sfdx-config.json')
 				const obj = JSON.parse(data)
 				currentAliasStr = obj.defaultusername
-				// outputCh.appendLine(currentAliasStr)
 	
 				await getConfigFile('.sfdx/orgColor.json')
-				// outputCh.appendLine('old config file : '+configFile)
 				
 				let colorResult = await getColor()
-				// console.log('in main() colorResult = '+colorResult)
 				
-				
-				if(colorResult === '' ) {
-					// console.log("if colorResult === '' = "+colorResult)
-					inputNewColor()
+				if(settingsChanged){
+					colorResult !== '' ? updateStyle(color) : updateStyle(undefined)
 
 				}else{
-
-					toUpdate === true ? inputNewColor() : setStyle(color)
-
-					// outputCh.show()
+					if(colorResult === '') {
+						const YES_OR_NOT = await vscode.window.showInformationMessage("The current org doesn't have a color assigned to it. Would you like to assign a new color ?", 'Yes', 'No')
+						if(YES_OR_NOT === 'Yes'){
+							inputNewColor()
+						}
+	
+					}else{
+						toUpdate ? inputNewColor() : updateStyle(color)
+					}
 				}
+
+				
 			}
 		} catch (e) {
 			console.error(e);
@@ -301,41 +299,40 @@ function activate(context) {
 		// vscode.window.showInformationMessage('Hello World from Org color indicator!');
 	}
 
-	let fileWatcher = vscode.workspace.createFileSystemWatcher('**/sfdx-config.json', false, false, true)
+	let configWatcher = vscode.workspace.createFileSystemWatcher('**/sfdx-config.json', false, false, true)
 	
-	fileWatcher.onDidChange(function (){
-		// outputCh.appendLine(`${e} was changed.`)
-		// console.log('.sfdx/sfdx-config.json was changed.')
+	configWatcher.onDidChange(function (){
 		vscode.commands.executeCommand('orgcolor.setOrgColor')
 	})
-	
 
+	vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('orgcolor.setColorBars')) {
+            main({settingsChanged : true})
+        }
+    });
+	
 	// workaround cause at startup config is overwritten by live share extension
 	const liveShareExtension = vscode.extensions.getExtension('ms-vsliveshare.vsliveshare');
 	function wait() {
-		if (!liveShareExtension.isActive) {
-			setTimeout(wait, 1000);
+		if (liveShareExtension && !liveShareExtension.isActive) {
+			setTimeout(wait, 2000);
 		} else {
-			// console.log('TEST: Is Active ? '+liveShareExtension.isActive)
 			vscode.commands.executeCommand('orgcolor.setOrgColor')
 		}
 	}
 	if(liveShareExtension !== undefined){
-		// console.log('TEST: Is Active ? '+liveShareExtension.isActive)
 		wait()
 	}else{
 		vscode.commands.executeCommand('orgcolor.setOrgColor')
 	}
 
-	// The commandId parameter must match the command field in package.json
-	let disposable1 = vscode.commands.registerCommand('orgcolor.setOrgColor', () => main(false) );
+	let disposable1 = vscode.commands.registerCommand('orgcolor.setOrgColor', () => main() );
 	context.subscriptions.push(disposable1)
 	
-	let disposable2 = vscode.commands.registerCommand('orgcolor.updateOrgColor', () => main(true) );
+	let disposable2 = vscode.commands.registerCommand('orgcolor.updateOrgColor', () => main({toUpdate: true}) );
 	context.subscriptions.push(disposable2)
 }
 
-// this method is called when your extension is deactivated
 function deactivate() {}
 
 module.exports = {
