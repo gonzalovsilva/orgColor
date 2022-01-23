@@ -11,6 +11,7 @@
   "author": {
     "name": "Gonçalo Silva"
   },
+  "icon": "images/logo.png",
   "engines": {
     "vscode": "^1.63.0"
   },
