@@ -8,7 +8,7 @@ It allows you to keep an eye on which org you are currently working with in a mo
 ## Requirements
 
 This extension requires you to have the [Salesforce Extension Pack
-](vscode:extension/salesforce.salesforcedx-vscode) installed.
+](https://marketplace.visualstudio.com/items?itemName=salesforce.salesforcedx-vscode) installed.
 
 ## Using it with a new org
 
