@@ -14,6 +14,10 @@ This extension requires you to have the [Salesforce Extension Pack
 
 ![on first use anim](./images/anim_use.gif)
 
+## Update configured colors if default color settings change
+
+![on color settings change anim](./images/anim_sync_config.gif)
+
 ## Settings in more detail
 
 ### Where configured org colors are saved

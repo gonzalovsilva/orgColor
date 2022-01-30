@@ -1,5 +1,6 @@
 const homedir = require('os').homedir();
 const fs = require('fs');
+const { get } = require('http');
 const { abort } = require('process');
 const vscode = require('vscode');
 
@@ -10,6 +11,9 @@ function activate(context) {
 	
 	const readFile = fs.promises.readFile
 	const writeFile = fs.promises.writeFile
+	const ORG_COLOR_CONFIG_PATH = '.sfdx/orgColor.json'
+	const SALESFORCE_ORG_CONFIG_PATH = '.sfdx/sfdx-config.json'
+	const NAME_FOR_CUSTOM_TYPE = 'Custom'
 	let configFile;
 	let currentAliasStr = '';
 	let aliasPath = '';
@@ -20,34 +24,34 @@ function activate(context) {
 	 * @param {boolean} bw
 	 */
 	function invertColor(hex, bw) {
-    if (hex.indexOf('#') === 0) {
+		if (hex.indexOf('#') === 0) {
 
-        hex = hex.slice(1);
-    }
-    // convert 3-digit hex to 6-digits.
-    if (hex.length === 3) {
-        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-    }
-    if (hex.length !== 6) {
-        throw new Error('Invalid HEX color.');
-    }
-		var r, g, b
-    r = parseInt(hex.slice(0, 2), 16),
-		g = parseInt(hex.slice(2, 4), 16),
-		b = parseInt(hex.slice(4, 6), 16);
-    if (bw) {
-        // https://stackoverflow.com/a/3943023/112731
-				// https://jsfiddle.net/bvpu1025/25/
-        return (r * 0.299 + g * 0.887 + b * 0.114) > 186
-            ? '#000000'
-            : '#FFFFDD';
-    }
-    // invert color components
-    r = (255 - r).toString(16);
-    g = (255 - g).toString(16);
-    b = (255 - b).toString(16);
-    // pad each with zeros and return
-    return "#" + padZero(r) + padZero(g) + padZero(b);
+			hex = hex.slice(1);
+		}
+		// convert 3-digit hex to 6-digits.
+		if (hex.length === 3) {
+			hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+		}
+		if (hex.length !== 6) {
+			throw new Error('Invalid HEX color.');
+		}
+			var r, g, b
+		r = parseInt(hex.slice(0, 2), 16),
+			g = parseInt(hex.slice(2, 4), 16),
+			b = parseInt(hex.slice(4, 6), 16);
+		if (bw) {
+			// https://stackoverflow.com/a/3943023/112731
+					// https://jsfiddle.net/bvpu1025/25/
+			return (r * 0.299 + g * 0.887 + b * 0.114) > 186
+				? '#000000'
+				: '#FFFFDD';
+		}
+		// invert color components
+		r = (255 - r).toString(16);
+		g = (255 - g).toString(16);
+		b = (255 - b).toString(16);
+		// pad each with zeros and return
+		return "#" + padZero(r) + padZero(g) + padZero(b);
 	}
 
 	/**
@@ -55,9 +59,9 @@ function activate(context) {
 	 * @param {number} [len]
 	 */
 	function padZero(str, len) {
-    len = len || 2;
-    var zeros = new Array(len).join('0');
-    return (zeros + str).slice(-len);
+		len = len || 2;
+		var zeros = new Array(len).join('0');
+		return (zeros + str).slice(-len);
 	}	
 
 	/**
@@ -68,7 +72,7 @@ function activate(context) {
 			vscode.window.showErrorMessage('Please open a workspaceFolder first')
 			abort
 		}
-    const folderPath = vscode.workspace.workspaceFolders[0].uri
+    	const folderPath = vscode.workspace.workspaceFolders[0].uri
 		const uri = vscode.Uri.joinPath(folderPath, file)
 		aliasPath = uri.fsPath
 
@@ -85,13 +89,14 @@ function activate(context) {
 		if (vscode.workspace.workspaceFolders === undefined) {
 			return vscode.window.showErrorMessage('Please open a workspaceFolder first')
 		}
-    const folderPath = vscode.workspace.workspaceFolders[0].uri
+    	const folderPath = vscode.workspace.workspaceFolders[0].uri
 		const uri = vscode.Uri.joinPath(folderPath, file)
 		aliasPath = uri.fsPath
 
 		try {
 			return readFile(aliasPath, 'utf-8')
-		} catch (error) {
+		} catch (e) {
+			console.error(e);
 		}
 	}
 	
@@ -109,16 +114,17 @@ function activate(context) {
 			configFile = await readFile(path, 'utf-8')
 
 		} catch (error) {
-			await createConfigFile(path)
 			configFile = '{}';
+			await createConfigFile(path, configFile)
 		} 
 	}
 
 	/**
 	 * @param {fs.PathLike | fs.promises.FileHandle} path
+	 * @param {string} content
 	 */
-	async function createConfigFile(path){
-		await writeFile(path, '{}')
+	async function createConfigFile(path, content){
+		await writeFile(path, content)
 	}
 
 	async function getColor(){
@@ -126,7 +132,7 @@ function activate(context) {
 		let obj = JSON.parse(configFile)
 
 		if (Object.keys(obj).includes(currentAliasStr)) {
-			color = obj[currentAliasStr]
+			color = obj[currentAliasStr].color
 		}
 		
 		return color;
@@ -190,7 +196,7 @@ function activate(context) {
 				optionsArray.push({ label: key , description: ' Default Color: '+orgColorSettings[key] , color : orgColorSettings[key] })
 			}
 		}
-		optionsArray.push({ label: 'Custom' , description: 'Set your own Hex color', color : '' })
+		optionsArray.push({ label: NAME_FOR_CUSTOM_TYPE , description: 'Set your own Hex color', color : '' })
 
 		const selected = await vscode.window.showQuickPick(
 			optionsArray,
@@ -204,7 +210,8 @@ function activate(context) {
 		const result = await selectColor();
 
 		if(result){
-			if(result.label === 'Custom'){
+			let orgType = result.label;
+			if(result.label === NAME_FOR_CUSTOM_TYPE){
 				const reg = /^#([0-9a-f]{3}){1,2}$/i;
 				vscode.window.showInputBox({
 					placeHolder: "#B44",
@@ -220,29 +227,29 @@ function activate(context) {
 						abort
 					}else{
 						color = input
-						updateConfigFile('.sfdx/orgColor.json')
+						updateConfigFile('.sfdx/orgColor.json', orgType)
 					}
 				});
 				
 			}
 			else{
 				color = result.color
-				updateConfigFile('.sfdx/orgColor.json')
+				updateConfigFile('.sfdx/orgColor.json', orgType)
 			}
 		}
 	}
 		
 	/**
 	 * @param {string} file
+	 * @param {string} orgType
 	 */
-	async function updateConfigFile(file){
+	async function updateConfigFile(file, orgType){
 		
 		let homeURI = vscode.Uri.file(homedir);
 		const uri = vscode.Uri.joinPath(homeURI, file)
-		
 		const path = uri.fsPath
 		
-		const newConfig = { ...JSON.parse(configFile),  [currentAliasStr]: color }
+		const newConfig = { ...JSON.parse(configFile),  [currentAliasStr]: {"color": color, "type": orgType} }
 		
 		configFile = JSON.stringify(newConfig)
 
@@ -252,30 +259,101 @@ function activate(context) {
 			await writeFile(path, JSON.stringify(newConfig, null, 2))
 			// console.log('file updated')
 			
-		} catch (error) {
+		} catch (e) {
+			console.error(e);
 		} 
 		
 	}
 
+	/**
+	 * @param {string} file
+	 */
+	async function updateDefaultColors(file){
 
-	async function main({ toUpdate = false, settingsChanged = false } = {}) {
+		let homeURI = vscode.Uri.file(homedir);
+		const uri = vscode.Uri.joinPath(homeURI, file)
+		const path = uri.fsPath
+
+		const extensionConfig = vscode.workspace.getConfiguration('orgcolor')
+		const defaultColors = JSON.parse(JSON.stringify( extensionConfig.get('defaultOrgColors') ))
+
 		try {
+			let obj = JSON.parse(configFile)
+			let toDecide = []
+			const reg = /^#([0-9a-f]{3}){1,2}$/i;
+
+			for (const org in obj) {
+				if(obj[org].type !== NAME_FOR_CUSTOM_TYPE && Object.keys(defaultColors).includes(obj[org].type)){
+					if(obj[org].color != defaultColors[obj[org].type] && reg.test(defaultColors[obj[org].type])){
+						
+						obj[org].color = defaultColors[obj[org].type]
+					} 
+				}
+				if(obj[org].type !== NAME_FOR_CUSTOM_TYPE && Object.values(defaultColors).includes(obj[org].color)) {
+					obj[org].type = Object.keys(defaultColors).find(key => defaultColors[key] === obj[org].color)
+					
+				}else if(obj[org].type !== NAME_FOR_CUSTOM_TYPE && !Object.keys(defaultColors).includes(obj[org].type)){
+
+					toDecide.push(org)
+				}
+			}
+
+			if(toDecide.length > 0){
+				const DELETE_OR_RENAME = await vscode.window.showWarningMessage(`You have deleted a default color type that's being used by some orgs. 
+					Would you like to delete any config related to that default color type or rename those to "${NAME_FOR_CUSTOM_TYPE}" ?`, 'Delete', 'Rename')
+
+				for (let i = 0; i < toDecide.length; i++) {
+					
+					if(DELETE_OR_RENAME === 'Delete'){
+						delete obj[toDecide[i]]
+					}else{
+						obj[toDecide[i]].type = NAME_FOR_CUSTOM_TYPE
+					}
+				}
+
+				if(DELETE_OR_RENAME === 'Delete'){
+
+				}
+
+			}
+
+			configFile = JSON.stringify(obj)
+			await writeFile(path, JSON.stringify(obj, null, 2))
+
+		} catch (e) {
+			console.error(e);
+		}
+
+	}
+
+
+	async function main({ toUpdate = false, barsChanged = false, defaultColorsChanged = false } = {}) {
+		try {
+			
 			if (!vscode.workspace) {
 				return vscode.window.showErrorMessage('Please open a project folder first')
 			}
 			color = '';
-			const exists = await checkFileExists('.sfdx/sfdx-config.json')
-
+			const exists = await checkFileExists(SALESFORCE_ORG_CONFIG_PATH)
+			
 			if(exists){
-				const data = await checkFile('.sfdx/sfdx-config.json')
+				const data = await checkFile(SALESFORCE_ORG_CONFIG_PATH)
 				const obj = JSON.parse(data)
 				currentAliasStr = obj.defaultusername
-	
-				await getConfigFile('.sfdx/orgColor.json')
 				
+				await getConfigFile(ORG_COLOR_CONFIG_PATH)
+				
+				if(defaultColorsChanged){
+					await updateDefaultColors(ORG_COLOR_CONFIG_PATH)
+
+					let colorResult = await getColor()
+					colorResult !== '' ? updateStyle(color) : updateStyle(undefined)
+					return
+				}
+
 				let colorResult = await getColor()
 				
-				if(settingsChanged){
+				if(barsChanged){
 					colorResult !== '' ? updateStyle(color) : updateStyle(undefined)
 
 				}else{
@@ -289,8 +367,6 @@ function activate(context) {
 						toUpdate ? inputNewColor() : updateStyle(color)
 					}
 				}
-
-				
 			}
 		} catch (e) {
 			console.error(e);
@@ -307,7 +383,13 @@ function activate(context) {
 
 	vscode.workspace.onDidChangeConfiguration(e => {
         if (e.affectsConfiguration('orgcolor.setColorBars')) {
-            main({settingsChanged : true})
+            main({barsChanged : true})
+        }
+    });
+
+	vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('orgcolor.defaultOrgColors')) {
+            main({defaultColorsChanged : true})
         }
     });
 	
@@ -326,11 +408,11 @@ function activate(context) {
 		vscode.commands.executeCommand('orgcolor.setOrgColor')
 	}
 
-	let disposable1 = vscode.commands.registerCommand('orgcolor.setOrgColor', () => main() );
-	context.subscriptions.push(disposable1)
+	context.subscriptions.push( vscode.commands.registerCommand('orgcolor.setOrgColor', () => main() ) )
 	
-	let disposable2 = vscode.commands.registerCommand('orgcolor.updateOrgColor', () => main({toUpdate: true}) );
-	context.subscriptions.push(disposable2)
+	context.subscriptions.push( vscode.commands.registerCommand('orgcolor.updateOrgColor', () => main({toUpdate: true}) ) )
+
+	context.subscriptions.push( vscode.commands.registerCommand('orgcolor.syncDefaultColors', () => main({defaultColorsChanged: true}) ) )
 }
 
 function deactivate() {}
