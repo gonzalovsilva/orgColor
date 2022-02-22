@@ -2,7 +2,7 @@
   "name": "orgcolor",
   "displayName": "Org color indicator",
   "description": "Sets colors for each Salesforce org that you work with, updating it automatically when you switch orgs.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/gonzalovsilva/orgColor"
