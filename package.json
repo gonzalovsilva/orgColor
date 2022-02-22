@@ -41,21 +41,28 @@
           "markdownDescription": "Where do you want to set the color ?",
           "properties": {
             "statusBar": {
-              "type": "boolean"
+              "type": "string",
+              "enum": ["Org Color", "Project Color", "Disable"],
+              "default": "Org Color"
             },
             "activityBar": {
-              "type": "boolean"
+              "type": "string",
+              "enum": ["Org Color", "Project Color", "Disable"],
+              "default": "Org Color"
             },
             "titleBar": {
-              "type": "boolean"
+              "type": "string",
+              "enum": ["Org Color", "Project Color", "Disable"],
+              "default": "Org Color"
             }
           },
           "default": {
-            "statusBar": true,
-            "activityBar": true,
-            "titleBar": true
+            "statusBar": "Org Color",
+            "activityBar": "Org Color",
+            "titleBar": "Org Color"
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": ["statusBar", "activityBar", "titleBar"]
         },
         "orgcolor.defaultOrgColors": {
           "type": "object",
@@ -63,27 +70,39 @@
           "properties": {
             "trailhead Org": {
               "type": "string",
-              "description": "Color for Trailhead playground orgs"
+              "description": "Color for Trailhead playground orgs",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+              "default": "#99AEBB"
             },
             "scratch Org": {
               "type": "string",
-              "description": "Color for Scratch orgs"
+              "description": "Color for Scratch orgs",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+              "default": "#73D06F"
             },
             "dev Org": {
               "type": "string",
-              "description": "Color for Develloper orgs"
+              "description": "Color for Develloper orgs",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+              "default": "#574FB8"
             },
             "uat Org": {
               "type": "string",
-              "description": "Color for User Acceptance Testing orgs"
+              "description": "Color for User Acceptance Testing orgs",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+              "default": "#FFA01B"
             },
             "preprod Org": {
               "type": "string",
-              "description": "Color for Pre-production orgs"
+              "description": "Color for Pre-production orgs",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+              "default": "#E8476A"
             },
             "prod Org": {
               "type": "string",
-              "description": "Color for Production orgs"
+              "description": "Color for Production orgs",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+              "default": "#B52B0B"
             }
           },
           "default": {
@@ -94,6 +113,14 @@
             "preprod Org": "#E8476A",
             "prod Org": "#B52B0B"
           },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+          }
+        },
+        "orgcolor.projects": {
+          "type": "object",
+          "scope": "resource",
           "additionalProperties": {
             "type": "string",
             "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"

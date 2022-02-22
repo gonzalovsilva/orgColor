@@ -1,6 +1,5 @@
 const homedir = require('os').homedir();
 const fs = require('fs');
-const { get } = require('http');
 const { abort } = require('process');
 const vscode = require('vscode');
 
@@ -14,10 +13,16 @@ function activate(context) {
 	const ORG_COLOR_CONFIG_PATH = '.sfdx/orgColor.json'
 	const SALESFORCE_ORG_CONFIG_PATH = '.sfdx/sfdx-config.json'
 	const NAME_FOR_CUSTOM_TYPE = 'Custom'
+	const NEW_PROJECT = 'New Project'
+	const ORG_COLOR = 'Org Color'
+	const DISABLE_COLOR = 'Disable'
 	let configFile;
 	let currentAliasStr = '';
 	let aliasPath = '';
 	let color = '';
+	let orgType = '';
+	let projectColor = '';
+	let projectName = '';
 
 	/**
 	 * @param {string} hex
@@ -127,60 +132,85 @@ function activate(context) {
 		await writeFile(path, content)
 	}
 
-	async function getColor(){
+	async function getOrg(){
 
 		let obj = JSON.parse(configFile)
+		let org = {};
 
 		if (Object.keys(obj).includes(currentAliasStr)) {
-			color = obj[currentAliasStr].color
+			org.project = obj[currentAliasStr].project
+			org.type = obj[currentAliasStr].type
+			org.color = obj[currentAliasStr].color
 		}
 		
-		return color;
+		return org;
 	}
 
 	/**
-	 * @param {string} color
+	 * @param {object} org
 	 */
-	function updateStyle(color){
+	function updateStyle(org){
 
 		const extensionConfig = vscode.workspace.getConfiguration('orgcolor')
 		const colBars = JSON.parse(JSON.stringify( extensionConfig.get('setColorBars') ))
+		const projectSettings = JSON.parse(JSON.stringify( extensionConfig.get('projects') ))
+		let orgColor, invertedColor, projectColor, invertedProjectColor, neutralColor;
 
-		const invertedColor = color ? invertColor(color, true) :undefined
-		const neutralColor = "#8b8680"
-		let _true, _color, _invertedColor, _neutralColor;
+		if(org !== undefined){
+			if(org.color !== undefined && org.color !== ''){
+				orgColor = org.color
+				invertedColor = invertColor(org.color, true)
+				neutralColor = "#8b8680"
+			}
+
+			if(org.project !== undefined && org.project !== ''){
+				if((Object.keys(projectSettings).includes(org.project))){
+					projectColor = projectSettings[org.project];
+					invertedProjectColor = invertColor(projectColor, true)
+					neutralColor = "#8b8680"
+				}
+			}
+
+		}else{
+			orgColor = invertedColor = projectColor = invertedProjectColor = neutralColor = undefined;
+		}
+
+		let _color, _invertedColor, _neutralColor, _isDisable, _isOrgColor;
 		let tmpObj = {};
 
-		_true = colBars.statusBar === true
-		_color = _true ? color : undefined
-		_invertedColor = _true ? invertedColor : undefined
-		_neutralColor = _true ? neutralColor : undefined
+		for (const key in colBars) {
+			if (Object.hasOwnProperty.call(colBars, key)) {
+				const el = colBars[key];
 
-		tmpObj["statusBar.background"] = _color
-		tmpObj["statusBar.foreground"] =  _invertedColor
-		tmpObj["statusBarItem.hoverBackground"] = _neutralColor
-		tmpObj["statusBarItem.activeBackground"] = _neutralColor
-		tmpObj["statusBar.border"] = _color
+				_isDisable = el.includes(DISABLE_COLOR)
+				_isOrgColor = el.includes(ORG_COLOR)
+				_color = _isDisable ? undefined : _isOrgColor ? orgColor : projectColor
+				_invertedColor = _isDisable ? undefined : _isOrgColor ? invertedColor : invertedProjectColor
+				_neutralColor = _isDisable ? undefined : _color === undefined ? undefined : neutralColor
 
-		_true = colBars.titleBar === true
-		_color = _true ? color : undefined
-		_invertedColor = _true ? invertedColor : undefined
-		_neutralColor = _true ? neutralColor : undefined
-
-		tmpObj["titleBar.activeBackground"] = _color
-		tmpObj["titleBar.activeForeground"] = _invertedColor
-		tmpObj["titleBar.border"] = _color
-		tmpObj["titleBar.inactiveBackground"] = _color
-
-		_true = colBars.activityBar === true
-		_color = _true ? color : undefined
-		_invertedColor = _true ? invertedColor : undefined
-		_neutralColor = _true ? neutralColor : undefined
-
-		tmpObj["activityBar.activeBackground"] = _neutralColor
-		tmpObj["activityBar.activeBorder"] = _neutralColor
-		tmpObj["activityBar.background"] = _color
-		tmpObj["activityBar.foreground"] = _invertedColor
+				switch (key) {
+					case "statusBar":
+						tmpObj["statusBar.background"] = _color
+						tmpObj["statusBar.foreground"] =  _invertedColor
+						tmpObj["statusBarItem.hoverBackground"] = _neutralColor
+						tmpObj["statusBarItem.activeBackground"] = _neutralColor
+						tmpObj["statusBar.border"] = _color
+						break;
+					case "titleBar":
+						tmpObj["titleBar.activeBackground"] = _color
+						tmpObj["titleBar.activeForeground"] = _invertedColor
+						tmpObj["titleBar.border"] = _color
+						tmpObj["titleBar.inactiveBackground"] = _color
+						break;
+					case "activityBar":
+						tmpObj["activityBar.activeBackground"] = _neutralColor
+						tmpObj["activityBar.activeBorder"] = _neutralColor
+						tmpObj["activityBar.background"] = _color
+						tmpObj["activityBar.foreground"] = _invertedColor
+						break;
+				}
+			}
+		}
 
 		vscode.workspace.getConfiguration("workbench").update("colorCustomizations", tmpObj, 0)
 	}
@@ -205,56 +235,145 @@ function activate(context) {
 		return selected
 	}
 
+	async function selectProject(){
+
+		const extensionConfig = vscode.workspace.getConfiguration('orgcolor')
+		const projectSettings = JSON.parse(JSON.stringify( extensionConfig.get('projects') ))
+
+		let optionsArray = []
+		optionsArray.push({ label: NEW_PROJECT , description: 'Enter a new project name', color : '' })
+		for (var key in projectSettings) {
+			if (projectSettings.hasOwnProperty(key)) {
+				optionsArray.push({ label: key , description: ' Color: '+projectSettings[key] , color : projectSettings[key] })
+			}
+		}
+
+		const selected = await vscode.window.showQuickPick(
+			optionsArray,
+			{ placeHolder: 'Select a project:' });
+
+		return selected
+	}
+
 	async function inputNewColor() {
 
 		const result = await selectColor();
 
-		if(result){
-			let orgType = result.label;
-			if(result.label === NAME_FOR_CUSTOM_TYPE){
-				const reg = /^#([0-9a-f]{3}){1,2}$/i;
-				vscode.window.showInputBox({
-					placeHolder: "#B44",
-					ignoreFocusOut: true,
-					prompt: 'Enter an hex color value',
-					validateInput: (text) => {
-						if (!reg.test(text)) {
-								return 'You must enter a valid hex color value';
-						} 	
-					}
-				}).then(input => {
-					if(input === undefined || input === ''){
-						abort
-					}else{
-						color = input
-						updateConfigFile('.sfdx/orgColor.json', orgType)
-					}
-				});
-				
-			}
-			else{
-				color = result.color
-				updateConfigFile('.sfdx/orgColor.json', orgType)
-			}
+		if(!result){
+			return '';
 		}
+		let orgType = result.label;
+		if(result.label !== NAME_FOR_CUSTOM_TYPE){
+			color = result.color
+			return orgType
+		}
+		const reg = /^#([0-9a-f]{3}){1,2}$/i;
+		let input = await vscode.window.showInputBox({
+			placeHolder: "#B44",
+			ignoreFocusOut: true,
+			prompt: 'Enter an hex color value',
+			validateInput: (text) => {
+				if (!reg.test(text)) {
+						return 'You must enter a valid hex color value';
+				} 	
+			}
+		})
+		if(input === undefined || input === ''){
+			return undefined
+		}else{
+			color = input
+			return orgType
+		}
+	}
+
+	async function assignOrgType() {
+		orgType = await inputNewColor()
+		if(orgType === undefined || orgType === '') return false;
+
+		return true;
+	}
+
+	async function createNewProject() {
+
+		const reg = /^#([0-9a-f]{3}){1,2}$/i;
+		let input = await vscode.window.showInputBox({
+			placeHolder: "Project Name",
+			ignoreFocusOut: true,
+			prompt: 'Enter the name of the project:'
+		})
+
+		if(input === undefined || input === ''){
+			return false;
+		}
+		projectName = input
+
+		input = await vscode.window.showInputBox({
+			placeHolder: "#B44",
+			ignoreFocusOut: true,
+			prompt: 'Enter an hex color value for this project:',
+			validateInput: (text) => {
+				if (!reg.test(text)) {
+					return 'You must enter a valid hex color value';
+				}
+			}
+		})
+
+		if(input === undefined || input === ''){
+			return false;
+		}
+
+		projectColor = input;
+
+		await setProjectConfig(projectName, projectColor)
+
+		return true;
+	}
+
+	async function assignNewProject() {
+
+		const result = await selectProject();
+
+		if(!result) return false;
+
+		if(result.label === NEW_PROJECT) return await createNewProject();
+
+		projectName = result.label
+		projectColor = result.color
+
+		await setProjectConfig(projectName, projectColor)
+
+		console.log('assignNewProject Done');
+		
+		return true;
+	}
+
+	/**
+	 * @param {string} projName
+	 * @param {string} projColor
+	 */
+	async function setProjectConfig(projName, projColor) {
+		const extensionConfig = vscode.workspace.getConfiguration('orgcolor')
+		let projConfig = extensionConfig.get("projects", {});
+
+		const newConfig = { ...projConfig,  [projName]: projColor }
+		await extensionConfig.update('projects', newConfig, vscode.ConfigurationTarget.Global) 
 	}
 		
 	/**
 	 * @param {string} file
-	 * @param {string} orgType
+	 * @param {object} org
 	 */
-	async function updateConfigFile(file, orgType){
+	async function updateConfigFile(file, org){
 		
 		let homeURI = vscode.Uri.file(homedir);
 		const uri = vscode.Uri.joinPath(homeURI, file)
 		const path = uri.fsPath
 		
-		const newConfig = { ...JSON.parse(configFile),  [currentAliasStr]: {"color": color, "type": orgType} }
+		const newConfig = { ...JSON.parse(configFile),  [currentAliasStr]: {"project": org.project, "type": org.type, "color": org.color} }
 		
 		configFile = JSON.stringify(newConfig)
 
 		try {
-			updateStyle(color)
 
 			await writeFile(path, JSON.stringify(newConfig, null, 2))
 			// console.log('file updated')
@@ -263,6 +382,60 @@ function activate(context) {
 			console.error(e);
 		} 
 		
+	}
+
+	/**
+	 * @param {string} file
+	 */
+	async function updateProjects(file){
+
+		let homeURI = vscode.Uri.file(homedir);
+		const uri = vscode.Uri.joinPath(homeURI, file)
+		const path = uri.fsPath
+
+		const extensionConfig = vscode.workspace.getConfiguration('orgcolor')
+		const projects = JSON.parse(JSON.stringify( extensionConfig.get("projects", {}) ))
+
+		try {
+			let obj = JSON.parse(configFile)
+			let toDecide = [];
+
+			for (const org in obj) {
+				if(obj[org].project !== undefined && !Object.keys(projects).includes(obj[org].project)){
+					toDecide.push(org)
+				}
+			}
+
+			if(toDecide.length > 0){
+				const DELETE_OR_RENAME = await vscode.window.showWarningMessage(`You have deleted a project variable that's being used by some orgs. 
+					Would you like to delete any config related to that default project variable or Assign a new Project to those ?`, 'Delete', 'Assign a new Project')
+
+				let newProjectName;
+				await (async () => {
+					if(DELETE_OR_RENAME === 'Assign a new Project'){
+						let trueOrFalse = await assignNewProject()
+						if(trueOrFalse === true){
+							newProjectName = projectName;
+						}
+					}
+				})();
+
+				for (let i = 0; i < toDecide.length; i++) {
+					
+					if(DELETE_OR_RENAME === 'Delete'){
+						obj[toDecide[i]].project = undefined
+					}else{
+						obj[toDecide[i]].project = newProjectName
+					}
+				}
+			}
+
+			configFile = JSON.stringify(obj)
+			await writeFile(path, JSON.stringify(obj, null, 2))
+
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	/**
@@ -310,11 +483,6 @@ function activate(context) {
 						obj[toDecide[i]].type = NAME_FOR_CUSTOM_TYPE
 					}
 				}
-
-				if(DELETE_OR_RENAME === 'Delete'){
-
-				}
-
 			}
 
 			configFile = JSON.stringify(obj)
@@ -326,14 +494,47 @@ function activate(context) {
 
 	}
 
+	/**
+	 * @param {object} org
+	 */
+	async function updateOrgConfig(org){
 
-	async function main({ toUpdate = false, barsChanged = false, defaultColorsChanged = false } = {}) {
+		let toUpdate = await vscode.window.showInformationMessage("What would you like to update for this org ?", 'Project', 'Org Type', 'Both')
+
+		console.log(toUpdate, '> toUpdate');
+
+		await (async () => {
+			if(toUpdate === 'Project' || toUpdate === 'Both'){
+				let trueOrFalse = await assignNewProject()
+				if(trueOrFalse === true){
+					org.project = projectName;
+				}
+				console.log('toUpdate Project or Both');
+			}
+		})();
+
+		await (async () => {
+			if(toUpdate === 'Org Type' || toUpdate === 'Both'){
+				let trueOrFalse = await assignOrgType()
+				if(trueOrFalse === true){
+					org.color = color;
+					org.type = orgType;
+				}
+				console.log('toUpdate Org Type or Both');
+			}
+		})();
+
+		return org;
+	}
+
+	async function main({ toUpdate = false, barsChanged = false, defaultColorsChanged = false, projectsChanged = false } = {}) {
 		try {
 			
 			if (!vscode.workspace) {
 				return vscode.window.showErrorMessage('Please open a project folder first')
 			}
 			color = '';
+			projectColor = '';
 			const exists = await checkFileExists(SALESFORCE_ORG_CONFIG_PATH)
 			
 			if(exists){
@@ -344,35 +545,79 @@ function activate(context) {
 				await getConfigFile(ORG_COLOR_CONFIG_PATH)
 				
 				if(defaultColorsChanged){
-					await updateDefaultColors(ORG_COLOR_CONFIG_PATH)
-
-					let colorResult = await getColor()
-					colorResult !== '' ? updateStyle(color) : updateStyle(undefined)
+					await updateDefaultColors(ORG_COLOR_CONFIG_PATH);
+					let orgObj = await getOrg();
+					(orgObj.color !== undefined) ? updateStyle(orgObj) : updateStyle(undefined)
 					return
 				}
 
-				let colorResult = await getColor()
+				if(projectsChanged){
+					await updateProjects(ORG_COLOR_CONFIG_PATH);
+					let orgObj = await getOrg();
+					(orgObj.project !== undefined) ? updateStyle(orgObj) : updateStyle(undefined)
+					console.log('updateProjects Done')
+					return
+				}
+
+				// let colorResult = await getColor()
+				let orgObj = await getOrg();
+				console.log(orgObj,'BEFORE')
 				
 				if(barsChanged){
-					colorResult !== '' ? updateStyle(color) : updateStyle(undefined)
+					(orgObj.color !== undefined) ? updateStyle(orgObj) : updateStyle(undefined)
+					return
 
-				}else{
-					if(colorResult === '') {
-						const YES_OR_NOT = await vscode.window.showInformationMessage("The current org doesn't have a color assigned to it. Would you like to assign a new color ?", 'Yes', 'No')
-						if(YES_OR_NOT === 'Yes'){
-							inputNewColor()
-						}
-	
-					}else{
-						toUpdate ? inputNewColor() : updateStyle(color)
-					}
 				}
+				
+				await (async () => {
+					if(toUpdate){
+						orgObj = await updateOrgConfig(orgObj)
+						console.log('updateOrgConfig Done')
+					}
+					
+				})();
+
+				let yesOrNo;
+				let trueOrFalse;
+
+				await (async () => {
+					if (orgObj.project === undefined || orgObj.project === '') {
+						yesOrNo = await vscode.window.showInformationMessage("The current org doesn't have a project assigned to it. Would you like to assign a new project ?", 'Yes', 'No')
+						if(yesOrNo === 'Yes'){
+							trueOrFalse = await assignNewProject()
+							if(trueOrFalse === true){
+								orgObj.project = projectName;
+							}
+						}
+					}
+				})();
+
+				await (async () => {
+					if (orgObj.color === undefined || orgObj.color === '') {
+						yesOrNo = await vscode.window.showInformationMessage("The current org doesn't have a color assigned to it. Would you like to assign a new color ?", 'Yes', 'No')
+						if(yesOrNo === 'Yes') {
+							trueOrFalse = await assignOrgType()
+							if(trueOrFalse === true){
+								orgObj.color = color;
+								orgObj.type = orgType;
+							}
+						}
+					}
+				})();
+				
+				console.log(orgObj,'AFTER')
+				updateStyle(orgObj)
+				console.log('updateStyle Done')
+
+				if(Object.keys(orgObj).length !== 0 && orgObj.constructor === Object){
+					await updateConfigFile('.sfdx/orgColor.json', orgObj)
+					console.log('updateConfigFile Done')
+				}
+				
 			}
 		} catch (e) {
 			console.error(e);
 		}
-		// Display a message box to the user
-		// vscode.window.showInformationMessage('Hello World from Org color indicator!');
 	}
 
 	let configWatcher = vscode.workspace.createFileSystemWatcher('**/sfdx-config.json', false, false, true)
@@ -390,6 +635,12 @@ function activate(context) {
 	vscode.workspace.onDidChangeConfiguration(e => {
         if (e.affectsConfiguration('orgcolor.defaultOrgColors')) {
             main({defaultColorsChanged : true})
+        }
+    });
+	
+	vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('orgcolor.projects')) {
+            main({projectsChanged : true})
         }
     });
 	
